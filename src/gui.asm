@@ -1,30 +1,40 @@
-; http://www.alsprogrammingresource.com/list_boxes.html
-
 .DATA
 StartGUI db "Starting GUI...",10, 0
 AppName db "FindTool", 0
 WindowWidth equ 500
 WindowHeight equ 400
+DefaultPadding equ 10
 
-ListBoxName db "Listbox", 0
-ListBoxId equ 1337
+EditBox db "EDIT", 0
+EditBoxId equ 1337
+
+Button db "BUTTON", 0
+ButtonId equ 1338
+ButtonContent db "FIND", 0
+
+FindButtonClicked db "Looking for this new directory...", 10, 0
+
+ListBox db "LISTBOX", 0
+ListBoxId equ 1339
+
 Item1 db "Item 1", 0
-Item2 db "Item 2", 0
-Item3 db "Item 3", 0
 
 PrintInt db "%s", 10, 0
 
 ; Errors
 RegisterWindowError db "Failed to register the window class.", 10, 0
 CantCreateWindowError db "Can't create the window.", 10, 0
-CantCreateListBoxError db "Can't create the listbox.", 10, 0
+CantCreateComponentError db "Can't create component in the window.", 10, 0
 
 .DATA?
 hInstance HINSTANCE ?
-mainWindowHWND HWND ?
-hwndListBox HWND ?
 wc WNDCLASSEX <>
 msg MSG <>
+
+mainWindowHWND HWND ?
+hwndButton HWND ?
+hwndEditBox HWND ?
+hwndListBox HWND ?
 
 rootDirectory dd ?
 depth dd ?
@@ -85,7 +95,7 @@ start_gui PROC
 		push WindowWidth
 		push CW_USEDEFAULT
 		push CW_USEDEFAULT
-		push WS_OVERLAPPEDWINDOW
+		push WS_OVERLAPPED or WS_CAPTION or WS_SYSMENU or WS_MINIMIZEBOX
 		push offset AppName
 		push offset AppName
 		push WS_EX_CLIENTEDGE
@@ -134,6 +144,7 @@ start_gui PROC
 		jmp stop_function
 		
 	stop_function:
+	
 		leave
 		ret 8
 start_gui ENDP
@@ -150,6 +161,9 @@ events_handler PROC
 		cmp DWORD PTR[ebp+12], WM_CREATE
 		je WM_CREATE_CASE
 
+		cmp DWORD PTR[ebp+12], WM_COMMAND
+		je WM_COMMAND_CASE
+		
 		cmp DWORD PTR[ebp+12], WM_DESTROY
 		je WM_DESTROY_CASE
 		
@@ -167,23 +181,68 @@ events_handler PROC
 		push GWL_HINSTANCE
 		push [ebp+8]
 		call GetWindowLong
+		mov ebx, eax
 		
 		push NULL
-		push eax
+		push ebx
+		push EditBoxId
+		push [ebp+8]
+		push 20
+		push WindowWidth-100
+		push DefaultPadding
+		push DefaultPadding
+		push WS_VISIBLE or WS_CHILD or WS_BORDER
+		push NULL
+		push offset EditBox
+		push 0
+		call CreateWindowEx
+		
+		cmp eax, NULL
+		je window_component_create_failed
+		
+		mov hwndEditBox, eax
+	
+		push rootDirectory
+		push 0
+		push WM_SETTEXT
+		push hwndEditBox
+		call SendMessageW
+		
+		push NULL
+		push ebx
+		push ButtonId
+		push [ebp+8]
+		push 20
+		push 60
+		push DefaultPadding
+		push WindowWidth-80
+		push WS_VISIBLE or WS_CHILD or BS_DEFPUSHBUTTON
+		push offset ButtonContent
+		push offset Button
+		push 0
+		call CreateWindowEx
+		
+		cmp eax, NULL
+		je window_component_create_failed
+		
+		mov hwndEditBox, eax
+		
+		push NULL
+		push ebx
 		push ListBoxId
 		push [ebp+8]
-		push WindowHeight
-		push WindowWidth
-		push 0
-		push 0
+		push WindowHeight-70
+		push WindowWidth-30
+		push 40
+		push DefaultPadding
 		push WS_VISIBLE or WS_CHILD or LBS_STANDARD or LBS_NOTIFY
 		push NULL
-		push offset ListBoxName
+		push offset ListBox
 		push 0
 		call CreateWindowEx
 
 		cmp eax, NULL
-		je listbox_create_failed
+		je window_component_create_failed
 		
 		mov hwndListBox, eax
 		
@@ -199,13 +258,30 @@ events_handler PROC
 		
 		jmp stop_function
 		
+	WM_COMMAND_CASE:
+		movsx eax, WORD PTR[ebp+18] ; <=> HIWORD Macro (http://www.masmforum.com/board/index.php?PHPSESSID=786dd40408172108b65a5a36b09c88c0&topic=18144.0)
+		
+		cmp eax, BN_CLICKED
+		je button_clicked
+		
+		jmp stop_function
+		
+	button_clicked:
+		push offset FindButtonClicked
+		call crt_printf
+		add esp, 4
+		
+		
+		
+		jmp stop_function
+		
 	WM_DESTROY_CASE:
 		push NULL
 		call PostQuitMessage
 		jmp stop_function
 	
-	listbox_create_failed:
-		push offset CantCreateListBoxError
+	window_component_create_failed:
+		push offset CantCreateComponentError
 		call crt_printf
 		add esp, 4
 	
@@ -331,12 +407,6 @@ recursive_listing_gui PROC
 		push offset PrintFile
 		call printf_unicode
 		
-		push offset FileData.cFileName
-		push 0
-		push LB_ADDSTRING
-		push hwndListBox
-		call SendMessageW
-		
 		mov eax, FileData.dwFileAttributes
 		and eax, FILE_ATTRIBUTE_DIRECTORY
 		cmp eax, 0
@@ -386,12 +456,18 @@ recursive_listing_gui PROC
 		add esp, 8
 		; ---------------------------------------------------
 		
+		push [esp]
+		push 0
+		push LB_ADDSTRING
+		push hwndListBox
+		call SendMessageW
+		
 		; Decrement the depth
 		mov ebx, [ebp+12]
 		dec ebx
 		
 		push ebx ; push the depth
-		push eax ; push malloc addr (which is the new path)
+		push [esp+4] ; push malloc addr (which is the new path)
 		call recursive_listing
 		
 		; malloc addr is already on the stack
