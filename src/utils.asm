@@ -103,7 +103,7 @@ printf_unicode PROC
 		push eax
 		push [eax]
 		push esi
-		push [StdOut]
+		push StdOut
 		call WriteConsoleW
 		
 		mov eax, [ebp-12] ; load string offset to print
@@ -121,13 +121,13 @@ printf_unicode PROC
 		push eax
 		push [eax]
 		push ebx
-		push [StdOut]
+		push StdOut
 		call WriteConsoleW
 		
 		add DWORD PTR[ebp-12], 4 ; increase stack offset to point on the next arg
 		
 		mov esi, [ebp-8] ; skip that part of the string
-		add esi, [SizeOfWchar] ; skip null byte, supposing wide characters are on 2 bytes... (Can change from one machine to another...)
+		add esi, SizeOfWchar ; skip null byte, supposing wide characters are on 2 bytes... (Can change from one machine to another...)
 		jmp begin_loop
 		
 	no_formatter_found:
@@ -144,7 +144,7 @@ printf_unicode PROC
 		push eax
 		push [eax]
 		push esi
-		push [StdOut]
+		push StdOut
 		call WriteConsoleW
 		
 		push [ebp+8]

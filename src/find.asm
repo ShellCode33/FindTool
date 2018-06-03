@@ -61,7 +61,7 @@ start:
 	
 	push STD_OUTPUT_HANDLE
 	call GetStdHandle
-	mov [StdOut], eax
+	mov StdOut, eax
 
 	call GetCommandLineW
 	
