@@ -40,10 +40,9 @@ recursive_listing PROC
 		
 	remove_backslash:
 		sub eax, SizeOfWchar
-		cmp WORD PTR[ebx+eax], '\' ; TODO : test SizeOfWchar to cmp a WORD or a DWORD
+		cmp WORD PTR[ebx+eax], '\'
 		jne done_removing_backslashes
 		
-		; TODO : test SizeOfWchar to cmp a WORD or a DWORD
 		mov WORD PTR[ebx+eax], 0 ; replace \ by a null byte
 		jmp remove_backslash
 		
@@ -98,6 +97,11 @@ recursive_listing PROC
 		cmp eax, 0
 		je next_loop_step
 		
+		mov eax, FileData.dwFileAttributes
+		and eax, FILE_ATTRIBUTE_DIRECTORY
+		cmp eax, 0
+		jne skip_print ; If it's a directory, we skip the prints
+		
 		push [ebp-4]
 		call crt_wcslen
 		cmp eax, 0
@@ -114,6 +118,7 @@ recursive_listing PROC
 		push offset PrintFile
 		call printf_unicode
 		
+	skip_print:
 		mov eax, FileData.dwFileAttributes
 		and eax, FILE_ATTRIBUTE_DIRECTORY
 		cmp eax, 0

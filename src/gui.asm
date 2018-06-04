@@ -1,5 +1,4 @@
 .DATA
-StartGUI db "Starting GUI...",10, 0
 AppName db "FindTool", 0
 WindowWidth equ 500
 WindowHeight equ 400
@@ -12,14 +11,12 @@ Button db "BUTTON", 0
 ButtonId equ 1338
 ButtonContent db "FIND", 0
 
-FindButtonClicked db "Looking for this new directory...", 10, 0
+WSTR LookingFor, "Looking for '|'...", 10, 0
 
 ListBox db "LISTBOX", 0
 ListBoxId equ 1339
 
-Item1 db "Item 1", 0
-
-PrintInt db "%s", 10, 0
+BufferSize equ 1024
 
 ; Errors
 RegisterWindowError db "Failed to register the window class.", 10, 0
@@ -39,6 +36,7 @@ hwndListBox HWND ?
 rootDirectory dd ?
 depth dd ?
 
+InputBuffer WORD BufferSize dup (?) ; This buffer will be used by the GetWindowText function to get the data inside the EditBox
 
 .CODE
 start_gui PROC
@@ -46,14 +44,14 @@ start_gui PROC
 		mov ebp, esp
 		
 		mov eax, [ebp+8]
-		mov [rootDirectory], eax
+		mov rootDirectory, eax
 		
 		mov eax, [ebp+12]
-		mov [depth], eax
+		mov depth, eax
 		
-		push offset StartGUI
-		call crt_printf
-		add esp, 4
+		push rootDirectory
+		push offset LookingFor
+		call printf_unicode
 		
 		push NULL
 		call GetModuleHandle
@@ -225,7 +223,7 @@ events_handler PROC
 		cmp eax, NULL
 		je window_component_create_failed
 		
-		mov hwndEditBox, eax
+		mov hwndButton, eax
 		
 		push NULL
 		push ebx
@@ -246,12 +244,6 @@ events_handler PROC
 		
 		mov hwndListBox, eax
 		
-		push offset Item1
-		push 0
-		push LB_ADDSTRING
-		push hwndListBox
-		call SendMessage
-		
 		push depth
 		push rootDirectory
 		call recursive_listing_gui
@@ -267,11 +259,28 @@ events_handler PROC
 		jmp stop_function
 		
 	button_clicked:
-		push offset FindButtonClicked
-		call crt_printf
-		add esp, 4
+		
+		push BufferSize
+		push offset InputBuffer
+		push hwndEditBox
+		call GetWindowTextW
+		
+		push offset InputBuffer
+		push offset LookingFor
+		call printf_unicode
 		
 		
+		; Clean existing data in the ListBox
+		push 0
+		push 0
+		push LB_RESETCONTENT
+		push hwndListBox
+		call SendMessageW
+		
+		; call recursive_listing_gui with the directory in the edit box
+		push -1 ; TODO : create an EditBox to change de depth
+		push offset InputBuffer
+		call recursive_listing_gui
 		
 		jmp stop_function
 		
@@ -333,10 +342,9 @@ recursive_listing_gui PROC
 		
 	remove_backslash:
 		sub eax, SizeOfWchar
-		cmp WORD PTR[ebx+eax], '\' ; TODO : test SizeOfWchar to cmp a WORD or a DWORD
+		cmp WORD PTR[ebx+eax], '\'
 		jne done_removing_backslashes
 		
-		; TODO : test SizeOfWchar to cmp a WORD or a DWORD
 		mov WORD PTR[ebx+eax], 0 ; replace \ by a null byte
 		jmp remove_backslash
 		
@@ -349,10 +357,12 @@ recursive_listing_gui PROC
 		cmp eax, 0
 		jne retreive_first_file ; If there is a wildcard already, we skip the appending
 		
-		; Print the root alone as if it were a file
-		push ebx
-		push offset PrintFile
-		call printf_unicode
+		; We add the root to the listbox
+		push ebx ; malloc addr
+		push 0
+		push LB_ADDSTRING
+		push hwndListBox
+		call SendMessageW
 		
 		; Append the wildcard
 		push offset EndPathWildcard
@@ -381,7 +391,7 @@ recursive_listing_gui PROC
 		call crt_wcscmp
 		add esp, 8 ; strcmp doesn't remove parameters from the stack
 		cmp eax, 0
-		je next_loop_step
+		je next_loop_step_skip_free
 		
 		; Ignore file if it's '..'
 		push offset ToExcludeFromListing2
@@ -389,30 +399,7 @@ recursive_listing_gui PROC
 		call crt_wcscmp
 		add esp, 8 ; strcmp doesn't remove parameters from the stack
 		cmp eax, 0
-		je next_loop_step
-		
-		push [ebp-4]
-		call crt_wcslen
-		cmp eax, 0
-		je skip_print_root ; If the root is empty (can happen with relative paths when specifying only one single directory), we skip printing the root and the backslash
-		
-		; Print root
-		push [ebp-4]
-		push offset PrintRoot
-		call printf_unicode
-
-	skip_print_root:
-		; Print filename
-		push offset FileData.cFileName
-		push offset PrintFile
-		call printf_unicode
-		
-		mov eax, FileData.dwFileAttributes
-		and eax, FILE_ATTRIBUTE_DIRECTORY
-		cmp eax, 0
-		je next_loop_step ; If it's a directory : recursive call, otherwise we continue the loop
-		
-		; PREPARING RECURSIVE CALL
+		je next_loop_step_skip_free
 
 		; ---------- Allocating memory in the heap ----------
 		mov ebx, 4 ; size of the allocation (starting from 4 for the \ between the old path and the new directory, 2 more for \* at the end of the new path and 1 more for the null byte at the end)
@@ -456,25 +443,35 @@ recursive_listing_gui PROC
 		add esp, 8
 		; ---------------------------------------------------
 		
-		push [esp]
+		mov eax, FileData.dwFileAttributes
+		and eax, FILE_ATTRIBUTE_DIRECTORY
+		cmp eax, 0
+		jne skip_print ; If it's a directory : skip adding in the listbox
+		
+		; We add the new path to the listbox
+		push [esp] ; malloc addr
 		push 0
 		push LB_ADDSTRING
 		push hwndListBox
 		call SendMessageW
 		
+		jmp next_loop_step
+		
+	skip_print:
 		; Decrement the depth
 		mov ebx, [ebp+12]
 		dec ebx
 		
 		push ebx ; push the depth
 		push [esp+4] ; push malloc addr (which is the new path)
-		call recursive_listing
+		call recursive_listing_gui
 		
+	next_loop_step:
 		; malloc addr is already on the stack
 		call crt_free
 		add esp, 4
 		
-	next_loop_step:
+	next_loop_step_skip_free:
 		push offset FileData
 		push [ebp-8] ; FindFirstFile handler
 		call FindNextFileW
