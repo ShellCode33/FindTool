@@ -1,5 +1,5 @@
 @echo off
-c:\masm32\bin\ml /c /Zd /coff find.asm
+c:\masm32\bin\ml /c /Zd /coff src/find.asm
 if errorlevel 1 goto errasm
 
 c:\\masm32\bin\Link /SUBSYSTEM:CONSOLE /out:"find.exe" find.obj

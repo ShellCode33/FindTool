@@ -43,8 +43,6 @@ WSTR ToExcludeFromListing2, "..", 0
 WSTR BackSlash, "\", 0
 WSTR EndPathWildcard, "\*", 0
 
-plop db "%i", 10, 0
-
 .DATA?
 ArgC dd ?
 StdOut dd ?
