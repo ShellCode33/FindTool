@@ -269,7 +269,6 @@ events_handler PROC
 		push offset LookingFor
 		call printf_unicode
 		
-		
 		; Clean existing data in the ListBox
 		push 0
 		push 0
@@ -278,7 +277,7 @@ events_handler PROC
 		call SendMessageW
 		
 		; call recursive_listing_gui with the directory in the edit box
-		push -1 ; TODO : create an EditBox to change de depth
+		push depth ; TODO : create an EditBox to change de depth
 		push offset InputBuffer
 		call recursive_listing_gui
 		
@@ -310,7 +309,7 @@ recursive_listing_gui PROC
 		sub esp, 8
 		
 		cmp DWORD PTR[ebp+12], 0
-		je stop_function ; if the depth equals 0, we stop the function and return
+		je skip_free ; if the depth equals 0, we stop the function and return (don't have to free anything -> no calloc called yet)
 		
 		; check that the root lenght isn't greater than MAX_PATH
 		push [ebp+8]
@@ -363,6 +362,7 @@ recursive_listing_gui PROC
 		push LB_ADDSTRING
 		push hwndListBox
 		call SendMessageW
+		
 		
 		; Append the wildcard
 		push offset EndPathWildcard
@@ -454,7 +454,7 @@ recursive_listing_gui PROC
 		push LB_ADDSTRING
 		push hwndListBox
 		call SendMessageW
-		
+
 		jmp next_loop_step
 		
 	skip_print:

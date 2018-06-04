@@ -8,7 +8,7 @@ recursive_listing PROC
 		sub esp, 8
 		
 		cmp DWORD PTR[ebp+12], 0
-		je stop_function ; if the depth equals 0, we stop the function and return
+		je skip_free ; if the depth equals 0, we stop the function and return (no calloc yet -> skip free)
 		
 		; check that the root lenght isn't greater than MAX_PATH
 		push [ebp+8]
