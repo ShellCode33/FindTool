@@ -5,12 +5,15 @@ Find utility coded in x86 assembly (MASM).
 
 # Command Line Interface
 Here's the help menu :
+
 ![alt cli_help](https://raw.githubusercontent.com/ShellCode33/FindTool/master/screenshots/cli.png)
 
 Using depth :
+
 ![alt cli_depth](https://raw.githubusercontent.com/ShellCode33/FindTool/master/screenshots/cli_example2.png)
 
 Wildcard support :
+
 ![alt cli_wildcard](https://raw.githubusercontent.com/ShellCode33/FindTool/master/screenshots/cli_example3.png)
 
 # GUI
