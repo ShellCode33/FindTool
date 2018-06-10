@@ -18,6 +18,7 @@ Wildcard support :
 
 # GUI
 To start the GUI, the argument `--gui` must be specified. The CLI additionnal parameters will be sent to the GUI.
+
 Note however that the depth can't be changed from the GUI yet.
 
 ![alt gui](https://raw.githubusercontent.com/ShellCode33/FindTool/master/screenshots/gui.png)
