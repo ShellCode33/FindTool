@@ -3,6 +3,8 @@ Find utility coded in x86 assembly (MASM).
 
 ![alt find_tool](https://raw.githubusercontent.com/ShellCode33/FindTool/master/screenshots/cli_example1.png)
 
+(Unicode supported)
+
 # Command Line Interface
 Here's the help menu :
 
