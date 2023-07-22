@@ -1,6 +1,8 @@
 # FindTool
 Find utility coded in x86 assembly (MASM).
 
+This project has no real purpose and was only there for me to learn assembly.
+
 ![alt find_tool](https://raw.githubusercontent.com/ShellCode33/FindTool/master/screenshots/cli_example1.png)
 
 (Unicode supported)
